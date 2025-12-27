@@ -86,7 +86,6 @@ def render_strategy_demo():
     st.header("⚔️ Competitive Battlecard Generator")
     st.markdown("Select a competitor to generate a sales strategy cheat-sheet.")
 
-    # Simulated Internal Knowledge Base
     competitor = st.selectbox("Select Competitor", ["Salesforce", "HubSpot", "Zendesk", "Custom..."])
     
     if competitor == "Custom...":
@@ -94,47 +93,61 @@ def render_strategy_demo():
 
     if st.button("Generate Battlecard"):
         if not competitor:
+            st.warning("Please enter a competitor name.")
             st.stop()
             
         with st.spinner(f"Researching {competitor}..."):
-            # This prompt simulates an Agent synthesizing data
             prompt = f"""
             You are a VP of Sales. Create a 'Battlecard' to help our team sell against {competitor}.
             Assume we are selling a modern, AI-first CRM called 'AlkrieCRM'.
             
-            Output JSON:
+            Output a JSON object (NOT a list) with this exact schema:
             {{
-                "their_weakness": "string (one major flaw of competitor)",
-                "our_strength": "string (why AlkrieCRM is better)",
+                "their_weakness": "string",
+                "our_strength": "string",
                 "kill_points": ["point 1", "point 2", "point 3"],
-                "pricing_comparison": "string (e.g. They are expensive, we are value)"
+                "pricing_comparison": "string"
             }}
             """
             
-            response = client.models.generate_content(
-                model="gemini-2.0-flash",
-                contents=prompt,
-                config=types.GenerateContentConfig(response_mime_type="application/json")
-            )
-            
-            data = json.loads(response.text)
-            
-            # DISPLAY AS A BATTLECARD
-            st.markdown(f"### 🥊 Strategy: Beating {competitor}")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.error(f"**Their Weakness:**\n\n{data['their_weakness']}")
-            with col2:
-                st.success(f"**Alkrie Advantage:**\n\n{data['our_strength']}")
-            
-            st.markdown("---")
-            st.markdown("#### 💬 Talking Points (Kill Points)")
-            for kp in data['kill_points']:
-                st.markdown(f"- 🎯 {kp}")
+            try:
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
                 
-            st.info(f"**Pricing Angle:** {data['pricing_comparison']}")
-
+                data = json.loads(response.text)
+                
+                # --- ROBUSTNESS FIX: Handle List vs Dict ---
+                if isinstance(data, list):
+                    data = data[0] # Grab the first item if it returned a list
+                
+                # DISPLAY AS A BATTLECARD
+                st.markdown(f"### 🥊 Strategy: Beating {competitor}")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.error(f"**Their Weakness:**\n\n{data.get('their_weakness', 'N/A')}")
+                with col2:
+                    st.success(f"**Alkrie Advantage:**\n\n{data.get('our_strength', 'N/A')}")
+                
+                st.markdown("---")
+                st.markdown("#### 💬 Talking Points (Kill Points)")
+                
+                # Safe loop for kill points
+                if "kill_points" in data and isinstance(data['kill_points'], list):
+                    for kp in data['kill_points']:
+                        st.markdown(f"- 🎯 {kp}")
+                    
+                st.info(f"**Pricing Angle:** {data.get('pricing_comparison', 'N/A')}")
+            
+            except Exception as e:
+                st.error(f"Error generating battlecard: {e}")
+                # Debugging aid: Show what the AI actually sent if it fails
+                if 'response' in locals():
+                    with st.expander("See raw AI output"):
+                        st.text(response.text)
 # --- MAIN APP ROUTER ---
 st.sidebar.title("🚀 C-Suite Demos")
 demo_choice = st.sidebar.radio("Select Tool", ["Legal Risk Auditor", "Sales Battlecard Agent"])
