@@ -23,7 +23,7 @@ client = genai.Client(api_key=api_key)
 # --- DEMO 1: THE LEGAL RISK ANALYST ---
 def render_legal_demo():
     st.header("⚖️ AI Contract Auditor")
-    st.markdown("Paste a legal clause or contract snippet. The AI will extract risks.")
+    st.markdown("Paste a legal clause. The AI will extract risks and **rewrite every single one**.")
 
     default_contract = """
     The Provider shall not be liable for any direct, indirect, or consequential damages. 
@@ -36,14 +36,19 @@ def render_legal_demo():
 
     if st.button("Analyze Risk"):
         with st.spinner("Reviewing with Legal Team..."):
+            # UPGRADED PROMPT: We ask for a list of 'fixes' objects
             prompt = """
             You are a Senior Corporate Counsel. Review this contract text.
             Output a JSON object with this exact schema:
             {
                 "risk_score": (integer 1-100),
                 "risk_level": (string "Low", "Medium", "High", "Critical"),
-                "red_flags": [list of strings describing specific risks],
-                "improved_clause": (string, rewrite the worst clause to be fair to the Client)
+                "analysis": [
+                    {
+                        "flag": "string (Describe the specific risk)", 
+                        "rewrite": "string (Draft a fairer version of this specific clause)"
+                    }
+                ]
             }
             """
             
@@ -57,19 +62,21 @@ def render_legal_demo():
                 data = json.loads(response.text)
                 
                 # VISUALIZATION
-                c1, c2, c3 = st.columns(3)
+                c1, c2 = st.columns(2)
                 with c1:
                     st.metric("Risk Score", f"{data['risk_score']}/100")
                 with c2:
                     color = "red" if data['risk_score'] > 50 else "green"
                     st.markdown(f"### Level: :{color}[{data['risk_level']}]")
                 
-                st.subheader("🚩 Red Flags Identified")
-                for flag in data['red_flags']:
-                    st.warning(flag)
-                    
-                with st.expander("✨ View AI-Suggested Rewrite"):
-                    st.info(data['improved_clause'])
+                st.divider()
+                st.subheader("🚩 Redlines & Rewrites")
+                
+                # Loop through the list of fixes
+                for item in data['analysis']:
+                    with st.expander(f"⚠️ Issue: {item['flag']}", expanded=True):
+                        st.markdown("**Suggested Rewrite:**")
+                        st.code(item['rewrite'], language="text")
                     
             except Exception as e:
                 st.error(f"Analysis failed: {e}")
