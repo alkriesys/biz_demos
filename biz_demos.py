@@ -4,6 +4,7 @@ from google.genai import types
 import os
 import json
 import pandas as pd
+from pypdf import PdfReader
 
 # --- CONFIG & SETUP ---
 st.set_page_config(page_title="Enterprise AI Suite", layout="wide")
@@ -148,11 +149,109 @@ def render_strategy_demo():
                 if 'response' in locals():
                     with st.expander("See raw AI output"):
                         st.text(response.text)
+
+# --- DEMO 3: THE SMART RECRUITER (Resume Matcher) ---
+def render_recruiter_demo():
+    st.header("🕵️ Smart Resume Screener")
+    st.markdown("Upload a Resume and paste the JD. The AI will score the candidate and check for **Notice Period**.")
+
+    # Input 1: The Job Description
+    default_jd = """
+    We are looking for a Senior AI Engineer.
+    Must have: Python, RAG experience, Vector Databases (Chroma/Pinecone).
+    Good to have: Streamlit, FastAPI.
+    Experience: 5+ years.
+    Notice Period: Immediate to 30 days max.
+    """
+    jd_text = st.text_area("Job Description (JD)", value=default_jd, height=150)
+
+    # Input 2: The Resume PDF
+    uploaded_file = st.file_uploader("Candidate Resume (PDF)", type="pdf")
+
+    if st.button("Screen Candidate"):
+        if not uploaded_file:
+            st.error("Please upload a resume first.")
+            st.stop()
+            
+        with st.spinner("Analyzing profile against JD..."):
+            # 1. Extract Text from PDF
+            try:
+                reader = PdfReader(uploaded_file)
+                resume_text = ""
+                for page in reader.pages:
+                    resume_text += page.extract_text()
+            except Exception as e:
+                st.error("Could not read PDF. Ensure it is text-based.")
+                st.stop()
+
+            # 2. The Recruiter Prompt
+            prompt = """
+            You are a Senior Technical Recruiter. Compare the Candidate Resume against the Job Description.
+            
+            CRITICAL: Check for 'Notice Period'. If not mentioned, flag as "Unknown".
+            
+            Output JSON schema:
+            {
+                "match_score": (integer 0-100),
+                "summary": "1 sentence verdict",
+                "key_missing_skills": ["skill 1", "skill 2"],
+                "notice_period_detected": "string",
+                "recommendation": "string (Shortlist / Reject / Hold)",
+                "outreach_draft": "string (Write a polite, professional WhatsApp message to the candidate. If Notice Period is unknown, ask for it. If skills are missing, ask about them. Keep it under 50 words.)"
+            }
+            """
+            try:
+                response = client.models.generate_content(
+                    model="gemini-2.0-flash",
+                    contents=f"JOB DESCRIPTION:\n{jd_text}\n\nRESUME CONTENT:\n{resume_text}\n\n{prompt}",
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                
+                data = json.loads(response.text)
+                
+                # VISUALIZATION
+                
+                # 1. Scorecard
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    st.metric("Match Score", f"{data['match_score']}%")
+                with c2:
+                    # Color logic for Recommendation
+                    color = "green" if data['recommendation'] == "Shortlist" else "red"
+                    st.markdown(f"### Verdict: :{color}[{data['recommendation']}]")
+                with c3:
+                    # Notice Period Alert
+                    np = data['notice_period_detected']
+                    if "Unknown" in np or "Missing" in np:
+                        st.warning("⚠️ Notice Period Missing")
+                        st.markdown("**🚀 AI-Generated Outreach (WhatsApp):**")
+                        st.text_area("Copy this message:", value=data['outreach_draft'], height=100)
+                    else:
+                        st.success(f"✅ Notice Period Found: {np}")
+                        with st.expander("View Outreach Message"):
+                            st.code(data['outreach_draft'], language="text")
+                
+                    st.info(f"**Summary:** {data['summary']}")
+                
+                # 2. Missing Skills
+                if data['key_missing_skills']:
+                    st.write("❌ **Missing / Weak Skills:**")
+                    for skill in data['key_missing_skills']:
+                        st.markdown(f"- {skill}")
+                else:
+                    st.balloons()
+                    st.success("Perfect Skill Match!")
+                    
+            except Exception as e:
+                st.error(f"AI Error: {e}")
+                
 # --- MAIN APP ROUTER ---
 st.sidebar.title("🚀 C-Suite Demos")
-demo_choice = st.sidebar.radio("Select Tool", ["Legal Risk Auditor", "Sales Battlecard Agent"])
+demo_choice = st.sidebar.radio("Select Tool", ["Legal Risk Auditor", "Sales Battlecard Agent", "Smart Resume Screener"])
 
 if demo_choice == "Legal Risk Auditor":
     render_legal_demo()
 elif demo_choice == "Sales Battlecard Agent":
     render_strategy_demo()
+elif demo_choice == "Smart Resume Screener":
+    render_recruiter_demo()
