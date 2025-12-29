@@ -24,6 +24,14 @@ client = genai.Client(api_key=api_key)
 # --- DEMO 1: THE LEGAL RISK ANALYST ---
 def render_legal_demo():
     st.header("⚖️ AI Contract Auditor")
+    with st.expander("💡 About this Demo:"):
+        st.markdown("""
+        This tool demonstrates **Agentic AI** for legal process automation.
+        It doesn't just summarize; it acts as a **Legal Analyst**, extracting critical risks from contract clauses and suggesting fairer rewrites, all in a structured format.
+        
+        **Role:** Architected the prompt engineering and JSON schema to ensure accurate risk detection and specific clause redlining, transforming unstructured legal text into actionable data for legal teams.
+        """)
+    
     st.markdown("Paste a legal clause. The AI will extract risks and **rewrite every single one**.")
 
     default_contract = """
@@ -85,8 +93,16 @@ def render_legal_demo():
 # --- DEMO 2: THE COMPETITIVE BATTLECARD ---
 def render_strategy_demo():
     st.header("⚔️ Competitive Battlecard Generator")
+    with st.expander("💡 About this Demo:"):
+        st.markdown("""
+        This Agent demonstrates **Dynamic Market Intelligence**.
+        It acts like a **VP of Sales Strategy**, synthesizing competitive analysis into concise "battlecards" for sales teams. This moves beyond simple data retrieval to generating actionable, context-aware sales tactics.
+        
+        **Role:** Designed the AI's persona and JSON output schema to ensure immediate utility for sales teams, enabling rapid response to competitor dynamics.
+        """)
+    
     st.markdown("Select a competitor to generate a sales strategy cheat-sheet.")
-
+    
     competitor = st.selectbox("Select Competitor", ["Salesforce", "HubSpot", "Zendesk", "Custom..."])
     
     if competitor == "Custom...":
@@ -153,6 +169,15 @@ def render_strategy_demo():
 # --- DEMO 3: THE SMART RECRUITER (Resume Matcher) ---
 def render_recruiter_demo():
     st.header("🕵️ Smart Resume Screener")
+    
+    with st.expander("💡 About this Demo:"):
+        st.markdown("""
+        This tool showcases **Top-of-Funnel HR Automation**.
+        It acts as a **24/7 Junior Recruiter**, automatically scoring candidate resumes against job descriptions, identifying missing skills, and critically, checking for **Notice Periods**. If vital information is missing, it drafts immediate outreach messages.
+        
+        **Role:** Engineered the multi-step AI logic for resume parsing (RAG), JD comparison, and conditional message drafting (Agentic Tool Use), specifically targeting efficiency bottlenecks in high-volume recruitment markets like Bengaluru.
+        """)
+    
     st.markdown("Upload a Resume and paste the JD. The AI will score the candidate and check for **Notice Period**.")
 
     # Input 1: The Job Description
